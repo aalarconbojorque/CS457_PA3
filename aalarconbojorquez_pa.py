@@ -7,7 +7,8 @@
 # MODIFICATION HISTORY:
 # Author             Date           Modification(s)
 # ----------------   -----------    ---------------
-# Andy Alarcon       2020-10-16     1.0 ... Setup environment using prior submission
+# Andy Alarcon       2020-10-16     1.0 ... Setup environment using prior submission, 
+#                                           Implemented parser for join command
 # -----------------------------------------------------------------------------
 
 import sys
@@ -245,6 +246,8 @@ def SelectCommandWithJoins(commandsList):
     tableNameLookupDic = {}
     # Create a dictionary with the table variable names to lookup the column names
     colNameLookupDic = {}
+    # Variable Table Names List
+    tableVariableList = []
     # Ensures we do not access RE data if they are not valid searches
     if SelectCommandValid and SelectFromValid and SelectWhereValid:
         # Grab the data from FROM RE
@@ -263,10 +266,15 @@ def SelectCommandWithJoins(commandsList):
 
         # Check the table names are valid and that the same variable names are used in both statements
         if (Fromtable1VarName == Wheretable1VarName and Fromtable2VarName == Wheretable2VarName) and len(Fromtable1Name) > 0 and len(Fromtable1Name) > 0 :
+            
+            #Populate dictionaries for easy lookup using the table variable names
             tableNameLookupDic = {
                 Fromtable1VarName: Fromtable1Name, Fromtable2VarName: Fromtable2Name}
             colNameLookupDic = {
                 Fromtable1VarName: Wheretable1ColName, Fromtable2VarName: Wheretable2ColName}
+            
+            tableVariableList.append(Fromtable1VarName)
+            tableVariableList.append(Fromtable2VarName)
             
             InputChecked = True
         else:
@@ -281,6 +289,7 @@ def SelectCommandWithJoins(commandsList):
         print("Good to go")
         print(tableNameLookupDic)
         print(colNameLookupDic)
+        print(tableVariableList)
         print(FromJoinType)
         print(Whereoperator)
     else :
