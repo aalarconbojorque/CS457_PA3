@@ -1,17 +1,13 @@
 # -----------------------------------------------------------------------------
 # FILE NAME:         aalarconbojorquez_pa.py
-# USAGE:             python3 aalarconbojorquez_pa.py < PA2_test.sql
-# NOTES:             Runs using the standards file input {filename} < PA2_test.sql
+# USAGE:             python3 aalarconbojorquez_pa.py < PA3_test.sql
+# NOTES:             Runs using the standards file input {filename} < PA3_test.sql
 #                    or line by line input python3 aalarconbojorquez_pa.py
 #
 # MODIFICATION HISTORY:
 # Author             Date           Modification(s)
 # ----------------   -----------    ---------------
-# Andy Alarcon       2020-09-27     1.0 ... Added multipleline command parsing, Insertion command with type checking
-# Andy Alarcon       2020-09-28     1.1 ... Added column specific select command
-# Andy Alarcon       2020-10-05     1.2 ... Added where condition feature to select command
-# Andy Alarcon       2020-10-07     1.2 ... Added delete command
-# Andy Alarcon       2020-10-11     1.2 ... Added update command
+# Andy Alarcon       2020-10-16     1.0 ... Setup environment using prior submission 
 # -----------------------------------------------------------------------------
 
 import sys
