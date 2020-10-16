@@ -7,7 +7,7 @@
 # MODIFICATION HISTORY:
 # Author             Date           Modification(s)
 # ----------------   -----------    ---------------
-# Andy Alarcon       2020-10-16     1.0 ... Setup environment using prior submission 
+# Andy Alarcon       2020-10-16     1.0 ... Setup environment using prior submission
 # -----------------------------------------------------------------------------
 
 import sys
@@ -18,12 +18,15 @@ import shutil
 # Global variable to keep track of the current DB in use
 GlobalCurrentDirectory = ""
 
-#A class to handle the metadata manipulation,
-#By calling GenerateMetadataObject func, the object will have parsed the 
-#Metadata names and datatypes, while also providing indexes to maniuplate
-#the data in queries 
+# A class to handle the metadata manipulation,
+# By calling GenerateMetadataObject func, the object will have parsed the
+# Metadata names and datatypes, while also providing indexes to maniuplate
+# the data in queries
+
+
 class MetaData(object):
     pass
+
 
 # Operators defined for conditon checking in queries
 op = {'>': lambda x, y: x > y,
@@ -155,9 +158,19 @@ def ExecuteCommand(commandLine):
 
         # If the first keyword is select
         elif commandLine[0].lower() == "select":
+
             # Check the remaining ones and execute or display an error
             try:
-                SelectCommand(commandLine[0:])
+                # Check if the FROM argument in the command line features multiple tables or join keywords
+                SelectFromSearch = re.search(
+                    r'(?i)from\s*\w*\s\w*\s*(\,|inner\s*join|left\s*outer\s*join)\s*\w*\s*\w*', unalteredCommandLine)
+
+                if SelectFromSearch:
+                    # This select command features Joins
+                    SelectCommandWithJoins(commandLine[0:])
+                else:
+                    # Execute select command without Joins
+                    SelectCommand(commandLine[0:])
             except:
                 print(argumentErrorMessage)
 
@@ -191,6 +204,106 @@ def ExecuteCommand(commandLine):
         # If the first keyword was not recognized above display an error
         else:
             print("!Failed command : '" + commandLine[0] + "' not recognized")
+
+
+# ----------------------------------------------------------------------------
+# FUNCTION NAME:     SelectCommandWithJoins(commandsList)
+# PURPOSE:           This function executes the select command with joins
+# -----------------------------------------------------------------------------
+
+
+def SelectCommandWithJoins(commandsList):
+    global GlobalCurrentDirectory
+
+    commandLine = ' '.join(str(e) for e in commandsList)
+
+    # Check the select command arguments (select *)
+    # No Groups since we are only doing the * operator
+    SelectCommandValid = re.search(r'(?i)select\s*\*\s*', commandLine)
+
+    # Check the from command has the format select name, name from table where condition;
+    # Group 1 = table1Name
+    # Group 2 = table1VariableName
+    # Group 3 = Type of Join Operator (,|inner Join|left outer join)
+    # Group 4 = table2Name
+    # Group 5 = table2VariableName
+    SelectFromValid = re.search(
+        r'(?i)from\s*(\w*)\s(\w*)\s*(\,|inner\s*join|left\s*outer\s*join)\s*(\w*)\s*(\w*)', commandLine)
+
+    # Check the where|on command has the correct format
+    # Group 1 = where|or
+    # Group 2 = table1VariableName
+    # Group 3 = table1columnName
+    # Group 4 = Operator (=)
+    # Group 5 = table2VariableName
+    # Group 6 = table2columnName
+    SelectWhereValid = re.search(
+        r'(?i)(where|on)\s+(.*?)\.(.*?)\s+(=|<=|>=|!=)\s+(.*?)\.(.*?);', commandLine)
+
+    InputChecked = False
+    # Create a dictionary with the table variable names to lookup the table names
+    tableNameLookupDic = {}
+    # Create a dictionary with the table variable names to lookup the column names
+    colNameLookupDic = {}
+    # Ensures we do not access RE data if they are not valid searches
+    if SelectCommandValid and SelectFromValid and SelectWhereValid:
+        # Grab the data from FROM RE
+        Fromtable1Name = SelectFromValid.group(1).strip().lower()
+        Fromtable2Name = SelectFromValid.group(4).strip().lower()
+        Fromtable1VarName = SelectFromValid.group(2).strip()
+        Fromtable2VarName = SelectFromValid.group(5).strip()
+        FromJoinType = SelectFromValid.group(3).strip()
+
+        # Grab the data from WHERE RE
+        Wheretable1VarName = SelectWhereValid.group(2).strip()
+        Wheretable2VarName = SelectWhereValid.group(5).strip()
+        Wheretable1ColName = SelectWhereValid.group(3).strip()
+        Wheretable2ColName = SelectWhereValid.group(6).strip()
+        Whereoperator = SelectWhereValid.group(4).strip()
+
+        # Check the table names are valid and that the same variable names are used in both statements
+        if (Fromtable1VarName == Wheretable1VarName and Fromtable2VarName == Wheretable2VarName) and len(Fromtable1Name) > 0 and len(Fromtable1Name) > 0 :
+            tableNameLookupDic = {
+                Fromtable1VarName: Fromtable1Name, Fromtable2VarName: Fromtable2Name}
+            colNameLookupDic = {
+                Fromtable1VarName: Wheretable1ColName, Fromtable2VarName: Wheretable2ColName}
+            
+            InputChecked = True
+        else:
+            print('!Select arguments were not correct')
+
+    else:
+        print('!Select arguments not recognized')
+
+
+
+    if InputChecked :
+        print("Good to go")
+        print(tableNameLookupDic)
+        print(colNameLookupDic)
+        print(FromJoinType)
+        print(Whereoperator)
+    else :
+        print("Bad monkey")
+
+    # If either RE had a match grab the data from the file/table
+
+    # if (SelectCommand and len(selectTableName) > 0 and len(selectColumns) > 0) or (SelectWhereCommand
+    #                                                                                and len(selectTableName) > 0 and len(selectColumns) > 0 and len(selectWhere) > 0):
+    #     if not GlobalCurrentDirectory:
+    #         print("!Failed a database is currently not in use")
+    #     else:
+    #         # Check if the table/file exists
+    #         if not os.path.exists(GlobalCurrentDirectory + "/" + selectTableName):
+
+    #             print("!Failed to query table " +
+    #                   selectTableName + " because it does not exist.")
+
+    #         else:
+    #             pass
+
+    # else:
+    #     print("!Failed select command arguments were invalid")
 
 # ----------------------------------------------------------------------------
 # FUNCTION NAME:     UpdateCommand(commandsList)

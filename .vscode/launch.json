@@ -9,7 +9,8 @@
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "args":["<","PA3_test.sql"],
+            //"args":["<","PA3_test.sql"],
+            "args":["<","test.sql"],
             "console": "integratedTerminal"
         }
     ]
