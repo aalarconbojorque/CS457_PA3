@@ -9,6 +9,8 @@
 # ----------------   -----------    ---------------
 # Andy Alarcon       2020-10-16     1.0 ... Setup environment using prior submission, 
 #                                           Implemented parser for join command
+# Andy Alarcon       2020-10-17     1.0 ... Implemented inner join operation
+# Andy Alarcon       2020-10-17     1.0 ... Implemented left outer join operation
 # -----------------------------------------------------------------------------
 
 import sys
@@ -275,7 +277,8 @@ def SelectCommandWithJoins(commandsList):
             
             tableVariableList.append(Fromtable1VarName)
             tableVariableList.append(Fromtable2VarName)
-            
+
+            #Set Input checked to true if all the inputs are good           
             InputChecked = True
         else:
             print('!Select arguments were not correct')
@@ -284,35 +287,174 @@ def SelectCommandWithJoins(commandsList):
         print('!Select arguments not recognized')
 
 
-
+    tablesExist = True
     if InputChecked :
-        print("Good to go")
-        print(tableNameLookupDic)
-        print(colNameLookupDic)
-        print(tableVariableList)
-        print(FromJoinType)
-        print(Whereoperator)
-    else :
-        print("Bad monkey")
 
-    # If either RE had a match grab the data from the file/table
+        if not GlobalCurrentDirectory:
+            print("!Failed a database is currently not in use")
+        else:
+            
+            #Check that each of the tables exists
+            for i, _ in enumerate(tableVariableList):
+                if not os.path.exists(GlobalCurrentDirectory + "/" + tableNameLookupDic[tableVariableList[i]]):
+                    print("!Failed to query table " +
+                        tableNameLookupDic[tableVariableList[i]] + " because it does not exist.")
+                    tablesExist = False
 
-    # if (SelectCommand and len(selectTableName) > 0 and len(selectColumns) > 0) or (SelectWhereCommand
-    #                                                                                and len(selectTableName) > 0 and len(selectColumns) > 0 and len(selectWhere) > 0):
-    #     if not GlobalCurrentDirectory:
-    #         print("!Failed a database is currently not in use")
-    #     else:
-    #         # Check if the table/file exists
-    #         if not os.path.exists(GlobalCurrentDirectory + "/" + selectTableName):
 
-    #             print("!Failed to query table " +
-    #                   selectTableName + " because it does not exist.")
+            # Check if all the tables exist
+            if tablesExist:
 
-    #         else:
-    #             pass
+                # Grab table 1 data and clean up
+                file = open(GlobalCurrentDirectory + "/" + tableNameLookupDic[tableVariableList[0]], "r")
+                Table1MDFL = file.readline()
+                Table1TDFLs = file.readlines()
+                Table1MDFL = Table1MDFL.replace('\n', '')
+                for i, _ in enumerate(Table1TDFLs):
+                    Table1TDFLs[i] = Table1TDFLs[i].replace('\n', '')    
+                for i, _ in enumerate(Table1TDFLs):
+                    Table1TDFLs[i] = Table1TDFLs[i].split(
+                        '|')         
+                file.close()
 
-    # else:
-    #     print("!Failed select command arguments were invalid")
+                # Grab table2 data and clean up
+                file = open(GlobalCurrentDirectory + "/" + tableNameLookupDic[tableVariableList[1]], "r")
+                Table2MDFL = file.readline()
+                Table2TDFLs = file.readlines()
+                Table2MDFL = Table2MDFL.replace('\n', '')
+                for i, _ in enumerate(Table2TDFLs):
+                    Table2TDFLs[i] = Table2TDFLs[i].replace('\n', '')   
+                for i, _ in enumerate(Table2TDFLs):
+                    Table2TDFLs[i] = Table2TDFLs[i].split(
+                        '|')  
+                file.close()
+                
+                # Generate Metadata object for both tables
+                MDTable1 = MetaData()
+                MDTable1 = GenerateMetadataObject(tableNameLookupDic[tableVariableList[0]])
+                MDTable2 = MetaData()
+                MDTable2 = GenerateMetadataObject(tableNameLookupDic[tableVariableList[1]])
+
+                # Generate temptable1LookUpList 
+                temptable1LookUpList = list()
+                # Append the name of the colum we are looking for in table 1
+                temptable1LookUpList.append(colNameLookupDic[tableVariableList[0]])
+                # Call getIndexList which will return the index of the column in that table
+                Table1IndexList = getIndexList(MDTable1, temptable1LookUpList)
+
+                # Generate temptable1LookUpList 
+                temptable2LookUpList = list()
+                # Append the name of the colum we are looking for in table 1
+                temptable2LookUpList.append(colNameLookupDic[tableVariableList[1]])
+                # Call getIndexList which will return the index of the column in that table
+                Table2IndexList = getIndexList(MDTable2, temptable2LookUpList)
+
+                #If the query had the inner join operation
+                if "inner" in FromJoinType or "," in FromJoinType :
+
+                    #Get Inner Join table list
+                    InnerJoinTableList = getInnerJoinTableList(Table1IndexList, Table2IndexList, Table1TDFLs, Table2TDFLs,  Whereoperator)
+                   
+                    #Print Metadata line of each table
+                    print(Table1MDFL + "|" + Table2MDFL)
+
+                    #Rejoin all the new table columns with a |
+                    AppendedTableDataJoined = []
+                    for i in range(0, len(InnerJoinTableList)):
+                        AppendedTableDataJoined.append(
+                            '|'.join(str(e) for e in InnerJoinTableList[i]))
+
+                    #Print each table line
+                    for i, _ in enumerate(Table2TDFLs):
+                        print(AppendedTableDataJoined[i])
+
+
+                #If not we assume outer join
+                else :
+                    #Get leftOuter Join table list
+                    LeftOuterJoinTableList = getLeftOuterJoinTableList(Table1IndexList, Table2IndexList, Table1TDFLs, Table2TDFLs,  Whereoperator)
+                   
+                    #Print Metadata line of each table
+                    print(Table1MDFL + "|" + Table2MDFL)
+
+                    #Rejoin all the new table columns with a |
+                    AppendedTableDataJoined = []
+                    for i in range(0, len(LeftOuterJoinTableList)):
+                        AppendedTableDataJoined.append(
+                            '|'.join(str(e) for e in LeftOuterJoinTableList[i]))
+
+                    #Print each table line
+                    for i, _ in enumerate(AppendedTableDataJoined):
+                        print(AppendedTableDataJoined[i])
+
+# ----------------------------------------------------------------------------
+# FUNCTION NAME:     getLeftOuterJoinTableList(Table1IndexList, Table2IndexList, Table1TDFLs, Table2TDFLs,  Whereoperator)
+# PURPOSE:           This function executes the left outer join operation and returns a table list
+# -----------------------------------------------------------------------------
+
+
+def getLeftOuterJoinTableList(Table1IndexList, Table2IndexList, Table1TDFLs, Table2TDFLs,  Whereoperator):
+    
+    JoinedTableData = []
+    Table1Match = False
+    NumberofColsinTable2 = len(Table2TDFLs[0])
+    blankTable2 = []
+
+    for i in range(0, NumberofColsinTable2):
+         blankTable2.append("")
+    # For every row in the first table
+    for i, _ in enumerate(Table1TDFLs):
+        Table1Match = False
+        # For every row in the second table
+        for j, _ in enumerate(Table2TDFLs):
+            JoinedList = []
+            # If the current row column of table 1 is equal to the current row column of table 2; match found
+            # op[WhereCondition[1]](FirstValue, SecondValue)
+            # if Table1TDFLs[i][Table1IndexList[0]] == Table2TDFLs[j][Table2IndexList[0]] :
+            if op[Whereoperator](Table1TDFLs[i][Table1IndexList[0]], Table2TDFLs[j][Table2IndexList[0]]) :
+                JoinedList = Table1TDFLs[i].copy()
+                JoinedList.extend(Table2TDFLs[j])
+                JoinedTableData.append(JoinedList)
+                Table1Match = True
+
+        if not Table1Match:
+            tempJoinedList = []
+            tempJoinedList = Table1TDFLs[i].copy()
+            tempJoinedList.extend(blankTable2)
+            JoinedTableData.append(tempJoinedList)
+
+
+    return JoinedTableData
+
+# ----------------------------------------------------------------------------
+# FUNCTION NAME:     getInnerJoinTableList(Table1IndexList, Table2IndexList, Table1TDFLs, Table2TDFLs,  Whereoperator)
+# PURPOSE:           This function executes the inner join operation and returns a table list
+# -----------------------------------------------------------------------------
+
+
+def getInnerJoinTableList(Table1IndexList, Table2IndexList, Table1TDFLs, Table2TDFLs,  Whereoperator):
+    
+    JoinedTableData = []
+
+    # For every row in the first table
+    for i, _ in enumerate(Table1TDFLs):
+        # For every row in the second table
+        for j, _ in enumerate(Table2TDFLs):
+            JoinedList = []
+            # If the current row column of table 1 is equal to the current row column of table 2; match found
+            # op[WhereCondition[1]](FirstValue, SecondValue)
+            # if Table1TDFLs[i][Table1IndexList[0]] == Table2TDFLs[j][Table2IndexList[0]] :
+            if op[Whereoperator](Table1TDFLs[i][Table1IndexList[0]], Table2TDFLs[j][Table2IndexList[0]]) :
+                JoinedList = Table1TDFLs[i].copy()
+                JoinedList.extend(Table2TDFLs[j])
+                JoinedTableData.append(JoinedList)
+
+    return JoinedTableData
+
+            
+    
+
+    
 
 # ----------------------------------------------------------------------------
 # FUNCTION NAME:     UpdateCommand(commandsList)
